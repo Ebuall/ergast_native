@@ -1,9 +1,7 @@
-import { Constants } from "expo";
 import * as React from "react";
-import { View } from "react-native";
 import { createStackNavigator } from "react-navigation";
-import { Table } from "../Table";
-import { DriverInfo } from "../Table/DriverInfo";
+import { Table } from "../Drivers";
+import { DriverInfo } from "../Drivers/DriverInfo";
 import { Races } from "../Races";
 
 const Home = createStackNavigator(

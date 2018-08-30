@@ -1,21 +1,14 @@
-import axios, { AxiosResponse } from "axios";
+import Axios, { AxiosResponse } from "axios";
+import { none, some } from "fp-ts/lib/Option";
 import * as t from "io-ts";
 import { DateFromISOString, IntegerFromString } from "io-ts-types";
 import { Lens, Prism } from "monocle-ts";
-import { combineEpics, Epic } from "redux-observable";
-import { defer } from "rxjs";
-import {
-  debounceTime,
-  delay,
-  filter,
-  map,
-  switchMap,
-  ignoreElements,
-} from "rxjs/operators";
+import { Epic } from "redux-observable";
+import { debounceTime, filter, map, switchMap } from "rxjs/operators";
 import { ofType, unionize, UnionOf } from "unionize";
 import { initRemoteD } from "../model/remote";
-import { some, none } from "fp-ts/lib/Option";
-import data from "./data.json";
+import { pipe } from "rxjs";
+import { keepOldDataIfNewOffsetIsNonZero } from "../LazyList/updates";
 
 export interface Driver extends t.TypeOf<typeof Driver> {}
 export const Driver = t.type(
@@ -54,20 +47,15 @@ export type RemoteDrivers = UnionOf<typeof RemoteDrivers>;
 
 const dataL = Lens.fromProp<AxiosResponse<t.mixed>, "data">("data");
 
-export type LoadDataParams<T = never> = {
+export type LoadDataParams = {
   limit: number;
   offset: number;
-} & T extends never
-  ? {}
-  : {
-      value: T;
-    };
+};
 
-export function loadDrivers(params: LoadDataParams = {}) {
+export function loadDrivers(params: LoadDataParams) {
   return (
-    // axios("http://ergast.com/api/f1/drivers.json", { params })
-    // import("./data.json")
-    Promise.resolve(data)
+    Axios("http://ergast.com/api/f1/drivers.json", { params })
+      // import("./data.json")
       .then(res => {
         console.log(res);
         const data = dataL.get(res);
@@ -125,36 +113,27 @@ export function getDrivers(rd: RemoteDrivers) {
   return driversFromRemoteL.getOption(rd).getOrElse([]);
 }
 
-export function updateIfNonZeroOffset(
-  prevArr: Driver[],
-  newData: DriverTableData,
-) {
-  return nonZeroOffsetP
-    .composeLens(driversL)
-    .modify(newArr => prevArr.concat(newArr))(newData);
-}
-
-function updateData(newRemote: RemoteDrivers, state: TableState): TableState {
-  return driverRemoteDataL.modify(prevRemote => {
-    if (!RemoteDrivers.is.Ok(prevRemote)) return newRemote;
-
-    return remoteOkP.modify(newData =>
-      updateIfNonZeroOffset(getDrivers(prevRemote), newData),
-    )(newRemote);
-  })(state);
-}
-
-export function tableReducer(
+export function driversReducer(
   state = getInitialState(),
   action: TableAction,
 ): TableState {
   const newState = TableAction.match(action, {
     LOAD_DRIVERS_RESULT: data =>
-      refreshingL.set(false)(updateData(data, state)),
+      pipe(
+        refreshingL.set(false),
+        driverRemoteDataL.modify(prevRemote =>
+          keepOldDataIfNewOffsetIsNonZero(
+            remoteOkP,
+            driversL,
+            nonZeroOffsetP,
+            prevRemote,
+            data,
+          ),
+        ),
+      )(state),
     default: () => state,
   });
 
-  console.log(action, newState);
   return newState;
 }
 
@@ -166,4 +145,4 @@ const loadDriversEpic: Epic = action$ =>
     map(res => TableAction.LOAD_DRIVERS_RESULT(res)),
   );
 
-export const tableEpic = loadDriversEpic;
+export const driversEpic = loadDriversEpic;

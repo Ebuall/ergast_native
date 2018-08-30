@@ -2,7 +2,7 @@ import * as React from "react";
 import { Text } from "react-native";
 import { Button, Card } from "react-native-elements";
 import { NavigationInjectedProps } from "react-navigation";
-import { formatDriver } from ".";
+import { formatDriver } from "../model/format";
 
 export class DriverInfo extends React.PureComponent<NavigationInjectedProps> {
   static navigationOptions = ({ navigation }: NavigationInjectedProps) => ({

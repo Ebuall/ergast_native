@@ -1,37 +1,28 @@
 import * as React from "react";
-import { ActivityIndicator, FlatList, Text, View } from "react-native";
-import { List, ListItem } from "react-native-elements";
+import { ActivityIndicator, Text, View } from "react-native";
+import { ListItem } from "react-native-elements";
+import { NavigationInjectedProps } from "react-navigation";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { RootState } from "../../App";
+import { LazyList } from "../LazyList";
+import { driverKeyExtractor, formatDate, formatDriver } from "../model/format";
+import { DriverInfo } from "./DriverInfo";
 import {
   Driver,
   driverRemoteDataL,
+  getDrivers,
   LoadDataParams,
   refreshingL,
   RemoteDrivers,
   TableAction,
-  getDrivers,
 } from "./ducks";
-import { Param0 } from "type-zoo";
-import { NavigationInjectedProps } from "react-navigation";
-import { DriverInfo } from "./DriverInfo";
-
-export const formatDriver = (d: Driver) => d.givenName + " " + d.familyName;
-const formatDate = (d: Date) =>
-  d.toLocaleDateString(navigator.language, {
-    year: "numeric",
-    // month: "long",
-    // day: "numeric",
-  });
 
 type Props = NavigationInjectedProps &
   ReturnType<typeof mapStateToProps> &
   ReturnType<typeof mapDispatchToProps>;
 
 export const PAGE_SIZE = 60;
-
-const keyExtractor = (d: Driver) => d.driverId;
 
 const TableGen = class Table extends React.PureComponent<Props> {
   static navigationOptions = {
@@ -58,26 +49,23 @@ const TableGen = class Table extends React.PureComponent<Props> {
       }
     />
   );
-  componentDidMount() {
-    this.reload();
-  }
   renderDriverList = () => {
     const { data, refreshing } = this.props;
     const drivers = getDrivers(data);
     return (
-      <List>
-        <FlatList
-          data={drivers}
-          renderItem={this.renderItem}
-          keyExtractor={keyExtractor}
-          onRefresh={this.reload}
-          refreshing={refreshing}
-          onEndReached={this.loadMore}
-          onEndReachedThreshold={1}
-        />
-      </List>
+      <LazyList
+        data={drivers}
+        renderItem={this.renderItem}
+        keyExtractor={driverKeyExtractor}
+        onRefresh={this.reload}
+        refreshing={refreshing}
+        loadMore={this.loadMore}
+      />
     );
   };
+  componentDidMount() {
+    this.reload();
+  }
   render() {
     const { data } = this.props;
     return (
@@ -92,16 +80,16 @@ const TableGen = class Table extends React.PureComponent<Props> {
   }
 };
 
-function mapStateToProps({ table }: RootState) {
+function mapStateToProps({ drivers }: RootState) {
   return {
-    data: driverRemoteDataL.get(table),
-    refreshing: refreshingL.get(table),
+    data: driverRemoteDataL.get(drivers),
+    refreshing: refreshingL.get(drivers),
   };
 }
 
 function mapDispatchToProps(dispatch: Dispatch) {
   return {
-    loadDrivers: (p?: LoadDataParams) =>
+    loadDrivers: (p: LoadDataParams) =>
       dispatch(TableAction.LOAD_DRIVERS_REQUEST(p)),
   };
 }

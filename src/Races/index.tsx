@@ -1,11 +1,18 @@
 import * as React from "react";
-import { Text, View, ActivityIndicator } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
+import { Card } from "react-native-elements";
 import { NavigationInjectedProps } from "react-navigation";
 import { connect } from "react-redux";
-import { RootState } from "../../App";
-import { makeDictKeyLens, RemoteRaces, RacesAction } from "./ducks";
-import { Card } from "react-native-elements";
 import { Dispatch } from "redux";
+import { RootState } from "../../App";
+import {
+  LoadDataParams,
+  makeDictKeyLens,
+  RacesAction,
+  RemoteRaces,
+} from "./ducks";
+import { RacesTable, PAGE_SIZE } from "./Table";
+import { refreshingL } from "./ducks";
 
 type OwnProps = NavigationInjectedProps;
 type Props = OwnProps &
@@ -17,22 +24,26 @@ function getId(navigation: NavigationInjectedProps["navigation"]) {
 }
 
 const Races_ = class Races extends React.PureComponent<Props> {
+  static navigationOptions = ({ navigation }: NavigationInjectedProps) => ({
+    title: "Races " + getId(navigation),
+  });
   componentDidMount() {
     const { loadRaces, navigation } = this.props;
-    loadRaces(getId(navigation));
+    loadRaces({ driverId: getId(navigation), limit: PAGE_SIZE, offset: 0 });
   }
   render() {
-    const { navigation, data } = this.props;
+    const { navigation, data, ...tableProps } = this.props;
     const driverId = getId(navigation);
-    console.log("races data", data);
     return (
-      <Card>
-        <Text>Races {driverId}</Text>
+      <View>
         {RemoteRaces.match(data, {
+          Ok: () => (
+            <RacesTable {...tableProps} data={data} driverId={driverId} />
+          ),
           Loading: () => <ActivityIndicator size="large" />,
-          default: x => <Text>{JSON.stringify(x.value)}</Text>,
+          default: x => <Text>{JSON.stringify(x)}</Text>,
         })}
-      </Card>
+      </View>
     );
   }
 };
@@ -41,13 +52,14 @@ function mapStateToProps({ races }: RootState, ownProps: OwnProps) {
   const driverId = getId(ownProps.navigation);
   return {
     data: makeDictKeyLens(driverId).get(races),
+    refreshing: refreshingL.get(races),
   };
 }
 
 function mapDispatchToProps(dispatch: Dispatch) {
   return {
-    loadRaces: (id: string) =>
-      dispatch(RacesAction.LOAD_RACES_REQUEST({ value: id })),
+    loadRaces: (params: LoadDataParams) =>
+      dispatch(RacesAction.LOAD_RACES_REQUEST(params)),
   };
 }
 
