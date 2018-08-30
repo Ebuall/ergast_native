@@ -1,25 +1,26 @@
 import * as React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Provider } from "react-redux";
+import { applyMiddleware, createStore, combineReducers } from "redux";
+import { createEpicMiddleware, combineEpics } from "redux-observable";
+import Main from "./src/Main";
+import { tableEpic, tableReducer } from "./src/Table/ducks";
+import { racesReducer, racesEpic } from "./src/Races/ducks";
+
+const reducer = combineReducers({ table: tableReducer, races: racesReducer });
+const epic = combineEpics(tableEpic, racesEpic);
+const epicMiddleware = createEpicMiddleware();
+const store = createStore(reducer, applyMiddleware(epicMiddleware));
+
+export type RootState = ReturnType<typeof reducer>;
+
+epicMiddleware.run(epic);
 
 export default class App extends React.Component<{}> {
   render() {
     return (
-      <View style={styles.container}>
-        <Text>Open up App.ts to start working on your app!</Text>
-        <Text>Changes you make will automatically reload.</Text>
-        <Text>Shake your phone to open the developer menu.</Text>
-        <Text>Slow</Text>
-        <Text>Hey hey</Text>
-      </View>
+      <Provider store={store}>
+        <Main />
+      </Provider>
     );
   }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
